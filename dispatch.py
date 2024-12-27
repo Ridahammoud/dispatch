@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import os
 
 # Définition des équipes
 team_1_Christian = ["Abdelaziz Hani Ddamir", "Aboubacar Tamadou", "Alhousseyni Dia", "Berkant Ince",
@@ -21,8 +22,21 @@ team_2_Hakim = ["Abdoul Ba", "Aladji Sakho", "Amadou Sow", "Arfang Cisse", "Boua
 # Combinaison des deux équipes
 all_operators = team_1_Christian + team_2_Hakim
 
-# Création d'un DataFrame pour stocker les données
-df = pd.DataFrame(columns=['Début Période', 'Fin Période', 'Opérateurs'])
+# Nom du fichier Excel
+EXCEL_FILE = "dispatch.xlsx"
+
+# Fonction pour charger les données depuis le fichier Excel
+def load_data():
+    if os.path.exists(EXCEL_FILE):
+        return pd.read_excel(EXCEL_FILE)
+    return pd.DataFrame(columns=['Début Période', 'Fin Période', 'Opérateurs'])
+
+# Fonction pour sauvegarder les données dans le fichier Excel
+def save_data(df):
+    df.to_excel(EXCEL_FILE, index=False)
+
+# Chargement initial des données
+df = load_data()
 
 # Fonction pour ajouter un dispatch
 def ajouter_dispatch(debut_periode, fin_periode, operateurs):
@@ -30,9 +44,10 @@ def ajouter_dispatch(debut_periode, fin_periode, operateurs):
     nouvelle_ligne = pd.DataFrame({
         'Début Période': [debut_periode],
         'Fin Période': [fin_periode],
-        'Opérateurs': [operateurs]
+        'Opérateurs': [', '.join(operateurs)]
     })
     df = pd.concat([df, nouvelle_ligne], ignore_index=True)
+    save_data(df)
 
 # Interface utilisateur
 st.title("Gestion des Dispatchs d'Opérateurs")
@@ -70,7 +85,7 @@ if st.button("Consulter"):
     else:
         st.info("Aucun dispatch trouvé pour cette date et cet opérateur.")
 
-# Affichage de tous les dispatchs (pour vérification)
+# Affichage de tous les dispatchs
 if not df.empty:
     st.header("Tous les Dispatchs")
     st.write(df)
