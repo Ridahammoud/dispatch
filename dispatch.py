@@ -1,91 +1,142 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+import calendar
 from datetime import datetime, timedelta
-import os
+import plotly.express as px
 
-# Définition des équipes
-team_1_Christian = ["Abdelaziz Hani Ddamir", "Aboubacar Tamadou", "Alhousseyni Dia", "Berkant Ince",
-                    "Boubakar Sidiki Ouedrago", "Boubou Gassama", "Chamsoudine Abdoulwahab", "Dagobert Ewane Jene",
-                    "Dione Mbaye", "Doro Diaw", "Enrique Aguey - Zinsou", "Fabien Prevost", "Fabrice Nelien", 
-                    "Idrissa Yatera", "Jabbar Arshad", "Jacques-Robert Bertrand", "Karamoko Yatabare", 
-                    "Mahamadou Niakate", "Mamadou Bagayogo", "Mamadou  Kane", "Mohamed Lamine Saad", "Moussa Soukouna",
-                    "Pascal Nouaga", "Rachid Ramdane", "Taha Hsine", "Tommy Lee Casdard", "Volcankan Ince", 
-                    "Youssef Mezouar", "Youssouf Wadiou", "Elyas Bouzar", "Reda Jdi"]
-
-team_2_Hakim = ["Abdoul Ba", "Aladji Sakho", "Amadou Sow", "Arfang Cisse", "Bouabdellah Ayad", 
-                "Cheickne Kebe", "Dany Chantre", "David Diockou N'Diaye", "Dylan Baron", "Fabien Tsop Nang", 
-                "Fabrice Badibengi", "Faker Ajili", "Fodie Koita Camara", "Gaetan Girard", "Idy Barro", 
-                "Aboubacar Cisse", "Johnny Michaud", "Ladji Bamba", "Mamadou Fofana", "Mamadou Kane", 
-                "Mamadou Sangare", "Mamadou Soumare", "Mohamed Bouchleh", "Mostefa Mokhtari", "Nassur Ibrahim", 
-                "Riadh Moussa", "Saim Haroun Bhatti", "Samir Chikh", "Tony Allot", "Walter Tavares"]
-
-# Combinaison des deux équipes
-all_operators = team_1_Christian + team_2_Hakim
-
-# Nom du fichier Excel
-EXCEL_FILE = "dispatch.xlsx"
+# Configuration de la page Streamlit
+st.set_page_config(page_title="Calendrier des Congés 2025", layout="wide")
+st.title("Calendrier des Congés 2025")
 
 # Fonction pour charger les données depuis le fichier Excel
-def load_data():
-    if os.path.exists(EXCEL_FILE):
-        return pd.read_excel(EXCEL_FILE)
-    return pd.DataFrame(columns=['Début Période', 'Fin Période', 'Opérateurs'])
+@st.cache_data
+def load_data(file_path):
+    try:
+        df = pd.read_excel(file_path)
+    except Exception as e:
+        st.error(f"Erreur lors de la lecture du fichier Excel : {e}")
+        return None
 
-# Fonction pour sauvegarder les données dans le fichier Excel
-def save_data(df):
-    df.to_excel(EXCEL_FILE, index=False)
+    # Vérifier et renommer les colonnes si nécessaire
+    expected_columns = ['Prénom et nom', 'Type', 'Type de congé', 'Début', 'Fin',
+                        'Succursale', 'Position', 'Ressources', 'Total (h)', 'Note',
+                        '# de la demande', 'Créée le', 'Approuvé à', 'Approbateur', 'Justification']
+    if not all(col in df.columns for col in expected_columns):
+        st.error("Les colonnes du fichier ne correspondent pas au format attendu.")
+        return None
 
-# Chargement initial des données
-df = load_data()
+    return df
 
-# Fonction pour ajouter un dispatch
-def ajouter_dispatch(debut_periode, fin_periode, operateurs):
-    global df
-    nouvelle_ligne = pd.DataFrame({
-        'Début Période': [debut_periode],
-        'Fin Période': [fin_periode],
-        'Opérateurs': [', '.join(operateurs)]
-    })
-    df = pd.concat([df, nouvelle_ligne], ignore_index=True)
-    save_data(df)
+# URL du fichier Excel (Google Sheets exporté en .xlsx)
+file_path = "https://docs.google.com/spreadsheets/d/1IO_1-v5i0IZQSF6UUfYEuKlTn6i-3hSI/export?format=xlsx"
+df = load_data(file_path)
 
-# Interface utilisateur
-st.title("Gestion des Dispatchs d'Opérateurs")
+# Vérifier si le DataFrame a été chargé correctement
+if df is None or df.empty:
+    st.warning("Aucune donnée à afficher.")
+    st.stop()
 
-# Section pour l'ajout de dispatch
-st.header("Ajout de Dispatch")
-debut_periode = st.date_input("Date de début de période")
-fin_periode = st.date_input("Date de fin de période", value=debut_periode + timedelta(days=14))
+# Convertir les colonnes 'Début' et 'Fin' en format datetime
+df['Début'] = pd.to_datetime(df['Début'], errors='coerce')
+df['Fin'] = pd.to_datetime(df['Fin'], errors='coerce')
 
-# Utilisation de st.multiselect pour choisir les opérateurs
-operateurs = st.multiselect("Sélectionner les opérateurs (entre 3 et 7)", options=all_operators)
+# Filtrer les congés pour l'année 2025
+df = df[(df['Début'].dt.year == 2025) | (df['Fin'].dt.year == 2025)]
 
-# Vérification du nombre d'opérateurs sélectionnés
-if 3 <= len(operateurs) <= 7:
-    if st.button("Ajouter Dispatch"):
-        ajouter_dispatch(debut_periode, fin_periode, operateurs)
-        st.success("Dispatch ajouté avec succès!")
+# Fonction pour créer un calendrier mensuel sous forme de grille
+def create_month_grid(year, month, data):
+    # Récupérer le premier jour du mois et le nombre de jours dans le mois
+    first_day_of_month = datetime(year, month, 1)
+    last_day_of_month = datetime(year, month, calendar.monthrange(year, month)[1])
+
+    # Créer un calendrier avec les jours de la semaine (lundi, mardi, ... dimanche)
+    days_in_month = [day for day in range(1, calendar.monthrange(year, month)[1] + 1)]
+    weeks = calendar.monthcalendar(year, month)
+
+    # Calculer les événements pour chaque jour du mois
+    day_events = {day: 0 for day in days_in_month}
+    for _, row in data.iterrows():
+        start_date = row['Début']
+        end_date = row['Fin']
+        
+        for day in pd.date_range(start=start_date, end=end_date, freq='D'):
+            if day.year == year and day.month == month:
+                day_events[day.day] += 1
+
+    # Préparer les couleurs : rouge pour plus de 3 congés, vert pour 1-3 congés, gris pour aucun congé
+    colors = []
+    for day in days_in_month:
+        if day_events[day] > 3:
+            colors.append('red')
+        elif day_events[day] > 0:
+            colors.append('green')
+        else:
+            colors.append('gray')
+
+    # Créer la grille avec Plotly
+    fig = go.Figure()
+
+    # Ajout des jours au calendrier
+    for week_idx, week in enumerate(weeks):
+        for day_idx, day in enumerate(week):
+            if day != 0:  # Ignore les jours vides (0 représente un jour vide dans le mois)
+                color = colors[day - 1]
+                fig.add_trace(go.Scatter(
+                    x=[day_idx], y=[week_idx],
+                    mode='markers+text',
+                    marker=dict(color=color, size=40),
+                    text=[f"{day}\n{day_events[day]}"],
+                    textposition="middle center",  # Correction ici pour que le texte soit au centre
+                    hovertext=f"{calendar.day_name[day_idx]} {day} : {day_events[day]} congé(s)",
+                    hoverinfo="text"
+                ))
+
+    # Mise en forme du graphique pour ressembler à un vrai calendrier
+    fig.update_layout(
+        title=f"Calendrier des Congés - {calendar.month_name[month]} {year}",
+        xaxis=dict(
+            tickvals=list(range(7)),
+            ticktext=["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+            title="Jours de la semaine",
+            showgrid=False,
+            zeroline=False,
+        ),
+        yaxis=dict(
+            tickvals=list(range(len(weeks))),
+            ticktext=[f"Semaine {i+1}" for i in range(len(weeks))],
+            title="Semaines",
+            showgrid=False,
+            zeroline=False,
+        ),
+        showlegend=False,
+        plot_bgcolor="white",
+        height=500,
+        width=800,
+    )
+
+    return fig
+
+# Affichage de l'interaction avec les mois et les années
+month_select = st.selectbox("Choisir un mois", options=range(1, 13), format_func=lambda x: calendar.month_name[x])
+
+# Créer le calendrier interactif pour le mois sélectionné
+fig = create_month_grid(2025, month_select, df)
+
+# Afficher le calendrier dans Streamlit
+st.plotly_chart(fig)
+
+# Détails du congé sélectionné
+st.subheader("Détails des Congés")
+selected_date = st.date_input("Sélectionner une date", min_value=datetime(2025, 1, 1), max_value=datetime(2025, 12, 31))
+selected_day_conges = df[(df['Début'].dt.date <= selected_date) & (df['Fin'].dt.date >= selected_date)]
+
+if selected_day_conges.empty:
+    st.write(f"Aucun congé programmé pour le {selected_date}.")
 else:
-    st.error("Veuillez sélectionner entre 3 et 7 opérateurs.")
-
-# Section pour la consultation des dispatchs
-st.header("Consultation des Dispatchs")
-date_consultation = st.date_input("Sélectionner une date")
-operateur_consultation = st.selectbox("Sélectionner un opérateur", options=all_operators)
-
-if st.button("Consulter"):
-    resultats = df[
-        (df['Début Période'] <= date_consultation) & 
-        (df['Fin Période'] >= date_consultation)
-    ]
-    resultats = resultats[resultats['Opérateurs'].apply(lambda x: operateur_consultation in x)]
-    if not resultats.empty:
-        st.write("Résultats de la consultation :")
-        st.write(resultats)
-    else:
-        st.info("Aucun dispatch trouvé pour cette date et cet opérateur.")
-
-# Affichage de tous les dispatchs
-if not df.empty:
-    st.header("Tous les Dispatchs")
-    st.write(df)
+    for _, row in selected_day_conges.iterrows():
+        st.write(f"**Nom**: {row['Prénom et nom']}")
+        st.write(f"**Type de congé**: {row['Type de congé']}")
+        st.write(f"**Justification**: {row['Justification']}")
+        st.write(f"**Période**: {row['Début'].strftime('%Y-%m-%d')} à {row['Fin'].strftime('%Y-%m-%d')}")
+        st.write("---")
