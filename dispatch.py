@@ -86,8 +86,8 @@ def create_month_grid(year, month, data):
                     x=[day_idx], y=[week_idx],
                     mode='markers+text',
                     marker=dict(color=color, size=40),
-                    text = f'<p style="color: white;">{day}<br>{day_events[day]}</p>',
-                    # text=[f"{day}\n{day_events[day]}"],
+                    # text = f'<p style="color: white;">{day}<br>{day_events[day]}</p>',
+                    text=[f"{day}\n{day_events[day]}"],
                     textposition="middle center",  # Correction ici pour que le texte soit au centre
                     hovertext=f"{calendar.day_name[day_idx]} {day} : {day_events[day]} congé(s)",
                     hoverinfo="text"
