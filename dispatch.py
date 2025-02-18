@@ -68,7 +68,7 @@ def create_month_grid(year, month, data):
     colors = []
     for day in days_in_month:
         if day_events[day] > 3:
-            colors.append('red')
+            colors.append('darkgoldenrod')
         elif day_events[day] > 0:
             colors.append('green')
         else:
