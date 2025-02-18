@@ -68,7 +68,7 @@ def create_month_grid(year, month, data):
     colors = []
     for day in days_in_month:
         if day_events[day] > 3:
-            colors.append('darkgoldenrod')
+            colors.append('red')
         elif day_events[day] > 0:
             colors.append('green')
         else:
@@ -85,7 +85,7 @@ def create_month_grid(year, month, data):
                 fig.add_trace(go.Scatter(
                     x=[day_idx], y=[week_idx],
                     mode='markers+text',
-                    marker=dict(color=color, size=40),
+                    marker=dict(color='black', size=40),
                     text=[f"{day}\n{day_events[day]}"],
                     textposition="middle center",  # Correction ici pour que le texte soit au centre
                     hovertext=f"{calendar.day_name[day_idx]} {day} : {day_events[day]} congé(s)",
