@@ -86,8 +86,7 @@ def create_month_grid(year, month, data):
                     x=[day_idx], y=[week_idx],
                     mode='markers+text',
                     marker=dict(color=color, size=40),
-                    colored_text = f'<p style="color: white;">{day}<br>{day_events[day]}</p>',
-                    text= colored_text,
+                    text = f'<p style="color: white;">{day}<br>{day_events[day]}</p>',
                     # text=[f"{day}\n{day_events[day]}"],
                     textposition="middle center",  # Correction ici pour que le texte soit au centre
                     hovertext=f"{calendar.day_name[day_idx]} {day} : {day_events[day]} congé(s)",
@@ -126,7 +125,7 @@ month_select = st.selectbox("Choisir un mois", options=range(1, 13), format_func
 fig = create_month_grid(2025, month_select, df)
 
 # Afficher le calendrier dans Streamlit
-st.plotly_chart(fig, unsafe_allow_html=True)
+st.plotly_chart(fig)
 
 # Détails du congé sélectionné
 st.subheader("Détails des Congés")
